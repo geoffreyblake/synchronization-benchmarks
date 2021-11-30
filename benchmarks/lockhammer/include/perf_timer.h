@@ -308,7 +308,7 @@ timer_get_cnt_freq(void)
 }
 #endif
 
-#define TOKENS_MAX_HIGH    1000000        /* good for ~41500 cntvct cycles */
+#define TOKENS_MAX_HIGH   1000000000 /* good for ~41500 cntvct cycles */
 #define THRESHOLD    1.05            // if the ratio of cycles to do the total eval loop  to  the sum of the individual
                                      // calls (e.g. due to context switch), rerun
 

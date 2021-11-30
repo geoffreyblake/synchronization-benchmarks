@@ -41,7 +41,10 @@
 #include <string.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <semaphore.h>
+#include <sys/sdt.h>
 
+#include "tp_provider.h"
 #include "lockhammer.h"
 #include "perf_timer.h"
 
@@ -460,9 +463,15 @@ void* hmr(void *ptr)
     while (!target_locks || nlocks < target_locks) {
         /* Do a lock thing */
         prefetch64(lock);
+        LOCKHAMMER_LOCK_ACQUIRE(lock);
         total_depth += lock_acquire(lock, mycore);
+        LOCKHAMMER_LOCK_ACQUIRED(lock);
+
         blackhole(hold_count);
+        
+        LOCKHAMMER_LOCK_RELEASE(lock);
         lock_release(lock, mycore);
+        LOCKHAMMER_LOCK_RELEASED(lock);
         blackhole(post_count);
 
         nlocks++;

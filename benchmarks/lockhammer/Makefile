@@ -21,8 +21,9 @@ endif
 
 LDFLAGS=-lpthread -lm
 
-lh_%: tests/%.h include/atomics.h src/lockhammer.c 
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_%: tests/%.h include/atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
 TARGET_ARCH:=$(shell ${CC} -dumpmachine | cut -d '-' -f 1)
 
@@ -38,7 +39,9 @@ TEST_TARGETS=lh_swap_mutex \
 	lh_jvm_objectmonitor \
 	lh_tbb_spin_rw_mutex \
 	lh_osq_lock \
-	lh_clh_spinlock
+	lh_clh_spinlock \
+	lh_posix_semaphore \
+	lh_pthread_mutex
 
 ifeq ($(TARGET_ARCH),aarch64)
 	TEST_TARGETS+=lh_hybrid_spinlock \
@@ -47,35 +50,52 @@ endif
 
 all: ${TEST_TARGETS}
 
-lh_event_mutex: ../../ext/mysql/event_mutex.h include/atomics.h ../../ext/mysql/include/ut_atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+src/tp_provider.h: src/tp_provider.d
+	dtrace -h -s src/tp_provider.d -o src/tp_provider.h
 
-lh_cas_event_mutex: ../../ext/mysql/cas_event_mutex.h include/atomics.h ../../ext/mysql/include/ut_atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+src/tp_provider.o: src/tp_provider.d
+	dtrace -G -s src/tp_provider.d -o src/tp_provider.o
 
-lh_ticket_spinlock: ../../ext/linux/ticket_spinlock.h include/atomics.h ../../ext/linux/include/lk_atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_event_mutex: ../../ext/mysql/event_mutex.h include/atomics.h ../../ext/mysql/include/ut_atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
-lh_hybrid_spinlock: ../../ext/linux/hybrid_spinlock.h include/atomics.h ../../ext/linux/include/lk_atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_cas_event_mutex: ../../ext/mysql/cas_event_mutex.h include/atomics.h ../../ext/mysql/include/ut_atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
-lh_hybrid_spinlock_fastdequeue: ../../ext/linux/hybrid_spinlock_fastdequeue.h include/atomics.h ../../ext/linux/include/lk_atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_ticket_spinlock: ../../ext/linux/ticket_spinlock.h include/atomics.h ../../ext/linux/include/lk_atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
-lh_osq_lock: ../../ext/linux/osq_lock.h ../../ext/linux/include/lk_atomics.h ../../ext/linux/include/lk_barrier.h ../../ext/linux/include/lk_cmpxchg.h include/atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_hybrid_spinlock: ../../ext/linux/hybrid_spinlock.h include/atomics.h ../../ext/linux/include/lk_atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
-lh_clh_spinlock: ../../ext/sms/clh_spinlock.h ../../ext/sms/base/build_config.h ../../ext/sms/base/cpu.h ../../ext/sms/base/llsc.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_hybrid_spinlock_fastdequeue: ../../ext/linux/hybrid_spinlock_fastdequeue.h include/atomics.h ../../ext/linux/include/lk_atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
-lh_queued_spinlock: ../../ext/linux/queued_spinlock.h include/atomics.h ../../ext/linux/include/lk_atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_osq_lock: ../../ext/linux/osq_lock.h ../../ext/linux/include/lk_atomics.h ../../ext/linux/include/lk_barrier.h ../../ext/linux/include/lk_cmpxchg.h include/atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
-lh_jvm_objectmonitor: ../../ext/jvm/jvm_objectmonitor.h include/atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_clh_spinlock: ../../ext/sms/clh_spinlock.h ../../ext/sms/base/build_config.h ../../ext/sms/base/cpu.h ../../ext/sms/base/llsc.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
-lh_tbb_spin_rw_mutex: ../../ext/tbb/tbb_spin_rw_mutex.h ../../ext/tbb/include/tbb.h include/atomics.h src/lockhammer.c
-	${CC} ${CFLAGS} -DNDEBUG -DATOMIC_TEST=\"$<\" src/lockhammer.c -o build/$@ ${LDFLAGS}
+lh_queued_spinlock: ../../ext/linux/queued_spinlock.h include/atomics.h ../../ext/linux/include/lk_atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
+
+lh_jvm_objectmonitor: ../../ext/jvm/jvm_objectmonitor.h include/atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
+
+lh_tbb_spin_rw_mutex: ../../ext/tbb/tbb_spin_rw_mutex.h ../../ext/tbb/include/tbb.h include/atomics.h src/lockhammer.c src/tp_provider.h src/tp_provider.o
+	${CC} ${CFLAGS} -DNDEBUG -DATOMIC_TEST=\"$<\" -c src/lockhammer.c -o src/lockhammer.o
+	${CC} ${CFLAGS} src/lockhammer.o src/tp_provider.o -o build/$@ ${LDFLAGS}
 
 clean:
 	rm -f build/lh_*
+	rm -f src/*.o src/tp_provider.h

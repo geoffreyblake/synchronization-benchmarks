@@ -29,12 +29,15 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef __LOCKHAMMER_H__
-#define __LOCKHAMMER_H__
+#pragma once
 
+#define LOCKHAMMER_LOCK_ACQUIRE(lock) LOCKHAMMER_USDT_LOCK_ACQUIRE(lock);
+#define LOCKHAMMER_LOCK_ACQUIRED(lock) LOCKHAMMER_USDT_LOCK_ACQUIRED(lock);
+#define LOCKHAMMER_LOCK_RELEASE(lock) LOCKHAMMER_USDT_LOCK_RELEASE(lock);
+#define LOCKHAMMER_LOCK_RELEASED(lock) LOCKHAMMER_USDT_LOCK_RELEASED(lock);
 
 #ifndef initialize_lock
-    #define initialize_lock(lock, thread)
+    #define initialize_lock(lock, thread) do {}while(0);
 #endif
 #ifndef parse_test_args
     #define parse_test_args(args, argc, argv)
@@ -77,5 +80,3 @@ struct test_args {
     int *pinorder;
 };
 typedef struct test_args test_args;
-
-#endif
